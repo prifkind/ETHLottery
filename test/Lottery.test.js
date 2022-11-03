@@ -4,7 +4,7 @@ const Web3 = require("web3");
 
 const web3 = new Web3(ganache.provider());
 
-const { interface, bytecode } = require("../compile");
+const { abi, evm } = require("../compile");
 
 let lottery;
 let accounts;
@@ -12,8 +12,8 @@ let accounts;
 beforeEach(async () => {
   accounts = await web3.eth.getAccounts();
 
-  lottery = await new web3.eth.Contract(JSON.parse(interface))
-    .deploy({ data: bytecode })
+  lottery = await new web3.eth.Contract(abi)
+    .deploy({ data: evm.bytecode.object })
     .send({ from: accounts[0], gas: "1000000" });
 });
 
@@ -102,11 +102,24 @@ describe("Lottery contract", () => {
     await lottery.methods.pickWinner().send({ from: accounts[0] });
 
     const finalBalance = await web3.eth.getBalance(accounts[0]);
-    const difference = finalBalance - initialBalance
+    const difference = finalBalance - initialBalance;
 
     // The difference won't be exactly 2 because of gas
     // This could be much more; so, consider how you implement this test
     // There's probably a way to get the amount of gas used when entering, set that to a variable, and just use that to calculate the difference
-    assert(difference > web3.utils.toWei('1.8', 'ether'));
+    assert(difference > web3.utils.toWei("1.8", "ether"));
+  });
+
+  it("returns the winner", async () => {
+    await lottery.methods
+      .enter()
+      .send({ from: accounts[0], value: web3.utils.toWei("0.02", "ether") });
+
+    await lottery.methods.pickWinner().send({
+      from: accounts[0],
+    });
+
+    let winner = lottery.methods.getWinner().call();
+    assert((winner = accounts[0]));
   });
 });
